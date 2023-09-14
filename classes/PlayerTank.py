@@ -8,12 +8,12 @@ from classes.Turret import Turret
 
 
 class PlayerTank:
-    def __init__(self, x, y, color, speed=5):
+    def __init__(self, position, color, speed=5, angle=90):
 
-        self.x = x
-        self.y = y
+        self.x = position[0]
+        self.y = position[1]
         self.color = color
-        self.health = 20
+        self.health = 15
         self.speed = speed
         self.turning_left = False
         self.turning_right = False
@@ -21,14 +21,13 @@ class PlayerTank:
         self.going_down = False
         self.front_breaking = False
         self.back_breaking = False
-        self.angle = 90
+        self.angle = angle
         self.max_ammo = 5
         self.ammo = []
         self.turret = Turret(self.x, self.y, self.angle)
         self.tracks = []
 
         self.clock = pygame.time.Clock()
-        self.clock.tick()
 
     def rotate_and_translate(self, x, y):
         angle_rad = radians(self.angle)
@@ -84,9 +83,9 @@ class PlayerTank:
         glBegin(GL_TRIANGLE_FAN)
         glColor3f(0.4, 0.4, 0.4)
         glVertex2f(40, 25)
-        glVertex2f(40, -25)
-        glVertex2f(-40, -25)
         glVertex2f(-40, 25)
+        glVertex2f(-40, -25)
+        glVertex2f(40, -25)
         glEnd()
 
         glColor3f(0.6, 0.6, 0.6)

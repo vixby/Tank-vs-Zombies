@@ -6,10 +6,10 @@ from math import radians, atan2, cos, sin
 
 
 class Zombie:
-    def __init__(self, x, y, speed=100):
+    def __init__(self, x, y, speed):
         self.x = x
         self.y = y
-        self.speed = random.random() * speed
+        self.speed = speed * random.random()
         self.clock = pygame.time.Clock()
         self.clock.tick()
 

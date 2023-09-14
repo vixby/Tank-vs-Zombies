@@ -7,10 +7,66 @@ from classes.BossZombie import BossZombie
 from classes.PlayerTank import PlayerTank
 from classes.SupplyBox import SupplyBox, Box
 from classes.Wall import Wall
+from classes.Gate import Gate
+from classes.Level import Level
 import random
 import time
 
-from math import radians, cos, sin
+
+levels = [Level('main', [
+    Wall((0, 0), (0, 10), (350, 10), (350, 0), (0, 0)),
+    Wall((800, 0), (800, 10), (450, 10), (450, 0), (800, 0)),
+    Wall((0, 600), (0, 590), (350, 590), (350, 600), (0, 600)),
+    Wall((800, 600), (800, 590), (450, 590), (450, 600), (800, 600)),
+    Wall((0, 0), (10, 0), (10, 250), (0, 250), (0, 0)),
+    Wall((0, 600), (10, 600), (10, 350), (0, 350), (0, 600)),
+    Wall((800, 0), (790, 0), (790, 250), (800, 250), (800, 0)),
+    Wall((800, 600), (790, 600), (790, 350), (800, 350), (800, 600)),
+], [Gate((350, 600), (350, 590), (450, 590), (450, 600), (350, 600)),
+    Gate((800, 250), (790, 250), (790, 350), (800, 350), (800, 250)),
+    Gate((0, 250), (10, 250), (10, 350), (0, 350), (0, 250)),
+    Gate((350, 0), (350, 10), (450, 10), (450, 0), (350, 0))],
+    15, 1, (400, 300), 90, 75),
+    Level('level_one', [
+        Wall((0, 0), (0, 10), (350, 10), (350, 0), (0, 0)),
+        Wall((800, 0), (800, 10), (450, 10), (450, 0), (800, 0)),
+        Wall((0, 600), (0, 590), (800, 590), (800, 600), (0, 600)),
+        Wall((0, 0), (10, 0), (10, 600), (0, 600), (0, 0)),
+        Wall((800, 0), (790, 0), (790, 600), (800, 600), (800, 0)),
+    ], [Gate((350, 0), (350, 10), (450, 10), (450, 0), (350, 0))],
+    30, 1, (400, 55), 90, 80),
+    Level('level_two', [
+        Wall((0, 0), (0, 10), (800, 10), (800, 0), (0, 0)),
+        Wall((0, 600), (0, 590), (800, 590), (800, 600), (0, 600)),
+        Wall((0, 0), (10, 0), (10, 250), (0, 250), (0, 0)),
+        Wall((0, 600), (10, 600), (10, 350), (0, 350), (0, 600)),
+        Wall((800, 0), (790, 0), (790, 590), (800, 590), (800, 0)),
+    ], [Gate((0, 250), (10, 250), (10, 350), (0, 350), (0, 250))],
+    45, 1, (55, 300), 0, 85),
+    Level('level_three', [
+        Wall((0, 0), (0, 10), (800, 10), (800, 0), (0, 0)),
+        Wall((0, 600), (0, 590), (800, 590), (800, 600), (0, 600)),
+        Wall((0, 600), (10, 600), (10, 0), (0, 0), (0, 600)),
+        Wall((800, 0), (790, 0), (790, 250), (800, 250), (800, 0)),
+        Wall((800, 600), (790, 600), (790, 350), (800, 350), (800, 600)),
+    ], [Gate((800, 250), (790, 250), (790, 350), (800, 350), (800, 250))],
+    60, 1, (745, 300), 180, 95),
+    Level('level_four', [
+        Wall((0, 0), (0, 10), (800, 10), (800, 0), (0, 0)),
+        Wall((0, 600), (0, 590), (350, 590), (350, 600), (0, 600)),
+        Wall((800, 600), (800, 590), (450, 590), (450, 600), (800, 600)),
+        Wall((0, 0), (10, 0), (10, 600), (0, 600), (0, 0)),
+        Wall((800, 0), (790, 0), (790, 600), (800, 600), (800, 0)),
+    ], [Gate((350, 600), (350, 590), (450, 590), (450, 600), (350, 600))],
+    75, 0.5, (400, 550), 270, 105)
+]
+
+zombie_spawn_points = [
+    (random.randint(50, 750), 550),
+    (random.randint(50, 750), 50),
+    (50, random.randint(50, 550)),
+    (750, random.randint(50, 550))
+]
 
 
 class RandomLines:
@@ -29,6 +85,8 @@ class RandomLines:
 
 class Game:
     def __init__(self, screen_size, font):
+        self.game_won = False
+        self.game_over = False
         self.font = font
         self.clock = pygame.time.Clock()
         self.clock.tick()
@@ -39,8 +97,18 @@ class Game:
         self.background_green = 0.1
         self.background_blue = 0.1
 
+        # level settings
+        self.current_level = 0
+        self.level = levels[self.current_level]
+        self.perimeter_walls = self.level.walls
+        self.gates = self.level.gates
+        self.kill_requirements = self.level.kill_requirement
+        self.current_level_index = 0
+        self.highest_level_completed = 0
+
         # tank settings
-        self.player_tank = PlayerTank(400, 300, (0.5, 0.4, 1.0), speed=100)
+        self.player_tank = PlayerTank(
+            (self.level.tank_position[0], self.level.tank_position[1]), (0.4, 0.3, 0.2), self.level.angle)
 
         # zombie settings
         self.spawn_interval = 3
@@ -48,35 +116,133 @@ class Game:
         self.max_zombies = 25
         self.zombies = []
         self.zombie_kills = 0
-
-        # boss zombie settings
-        self.boss_zombie = None
+        self.zombie_speed = self.level.zombie_speed
 
         # supply box settings
-        self.health_box_interval = 60
-        self.ammo_box_interval = 30
+        self.health_box_interval = 30
+        self.ammo_box_interval = 20
         self.last_health_time = 0
         self.last_ammo_time = 0
         self.boxes = []
 
-        # random walls settings
-        self.walls = []
-        for _ in range(5):
-            x1, y1 = random.randint(0, 200), random.randint(0, 600)
-            x2, y2 = random.randint(0, 200), random.randint(0, 600)
-            wall = RandomLines(x1, y1, x2, y2)
-            self.walls.append(wall)
+        self.message = f"Kills until next round: {self.zombie_kills} / {self.level.kill_requirement}"
+        self.message_position = (10, 10)
 
-        self.perimeter_walls = [
-            Wall((0, 0), (0, 10), (350, 10), (350, 0), (0, 0)),
-            Wall((800, 0), (800, 10), (450, 10), (450, 0), (800, 0)),
-            Wall((0, 600), (0, 590), (350, 590), (350, 600), (0, 600)),
-            Wall((800, 600), (800, 590), (450, 590), (450, 600), (800, 600)),
-            Wall((0, 0), (10, 0), (10, 250), (0, 250), (0, 0)),
-            Wall((0, 600), (10, 600), (10, 350), (0, 350), (0, 600)),
-            Wall((800, 0), (790, 0), (790, 250), (800, 250), (800, 0)),
-            Wall((800, 600), (790, 600), (790, 350), (800, 350), (800, 600)),
-        ]
+    def set_level(self, level):
+        self.zombies = []
+        self.zombie_kills = 0
+        self.boxes = []
+        self.player_tank.ammo = []
+        self.level = level
+        self.current_level = level
+        self.perimeter_walls = self.level.walls
+        self.gates = self.level.gates
+        self.kill_requirements = self.level.kill_requirement
+        self.spawn_interval = self.level.spawn_rate
+        self.player_tank.x = self.level.tank_position[0]
+        self.player_tank.y = self.level.tank_position[1]
+        self.player_tank.angle = self.level.angle
+
+    def reset_game(self):
+        self.player_tank.health = 15
+        self.player_tank.max_ammo = 5
+        self.highest_level_completed = 0
+        self.current_level_index = 0
+        self.level = levels[self.current_level_index]
+        self.zombies = []
+        self.boxes = []
+        self.perimeter_walls = self.level.walls
+        self.gates = self.level.gates
+        self.spawn_interval = self.level.spawn_rate
+        self.zombie_kills = 0
+        self.game_over = False
+        self.game_won = False
+        self.player_tank.x = self.level.tank_position[0]
+        self.player_tank.y = self.level.tank_position[1]
+        self.player_tank.angle = self.level.angle
+
+    def set_game_over(self):
+
+        self.zombies = []
+        self.boxes = []
+        self.perimeter_walls = []
+        self.gates = []
+        self.message = "You lost! Press 'R' to restart or 'ESC' to quit."
+        self.message_position = (250, 300)
+
+    def set_game_won(self):
+        # remove all objects and render you won text
+        self.zombies = []
+        self.boxes = []
+        self.perimeter_walls = []
+        self.gates = []
+        self.message = "You Won! Press 'R' to restart or 'ESC' to quit."
+        self.message_position = (250, 300)
+
+    def game_loop(self):
+        if not self.game_won and not self.game_over:
+            if self.player_tank.health == 0:
+                self.game_over = True
+                self.set_game_over()
+            if self.zombie_kills == self.kill_requirements:
+                if self.current_level_index == 4:
+                    self.game_won = True
+                    self.set_game_won()
+                self.current_level_index += 1
+                if self.current_level_index > self.highest_level_completed and self.game_won == False:
+                    self.highest_level_completed = self.current_level_index
+                    self.set_level(levels[self.current_level_index])
+
+        self.check_tank_collision()
+        self.check_zombie_collision()
+
+        current_time = time.time()
+        x_mouse, y_mouse = pygame.mouse.get_pos()
+        y_mouse = self.screen_size["y"] - y_mouse
+        self.player_tank.turret.update_angle(x_mouse, y_mouse)
+        self.player_tank.update_position()
+        new_ammo = [p for p in self.player_tank.ammo if 0 <=
+                    p.x <= 800 and 0 <= p.y <= 600]
+        self.player_tank.ammo = new_ammo
+        for supply in self.boxes:
+            self.check_supply_hit()
+        for projectile in self.player_tank.ammo:
+            if self.check_zombie_hit(projectile):
+                self.player_tank.ammo.remove(projectile)
+        for zombie in self.zombies:
+            zombie.update_position(self.player_tank.x, self.player_tank.y)
+        if not self.game_won and not self.game_over:
+            self.check_spawning(current_time)
+        for projectile in self.player_tank.ammo:
+            projectile.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == K_ESCAPE):
+                pygame.quit()
+                quit()
+            elif event.type == pygame.KEYDOWN:
+                self.handle_key_down(event)
+            elif event.type == pygame.KEYUP:
+                self.handle_key_up(event)
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self.player_tank.fire()
+        if not self.game_won and not self.game_over:
+            self.message = f"Kills until next round: {self.zombie_kills} / {self.level.kill_requirement}"
+            self.message_position = (10, 10)
+
+        self.display()
+
+    def check_spawning(self, current_time):
+        if current_time - self.last_spawn_time > self.spawn_interval and len(self.zombies) < self.max_zombies:
+            print(".....")
+            for _ in range(random.randint(1, 6)):
+                self.spawn_zombie()
+            self.last_spawn_time = current_time
+        if current_time - self.last_health_time > self.health_box_interval:
+            self.spawn_health_box()
+            self.last_health_time = current_time
+        if current_time - self.last_ammo_time > self.ammo_box_interval:
+            self.spawn_ammo_box()
+            self.last_ammo_time = current_time
 
     def draw_health_bar(self):
         for i in range(self.player_tank.health):
@@ -91,7 +257,7 @@ class Game:
     def draw_ammo_count(self):
         for i in range(self.player_tank.max_ammo - len(self.player_tank.ammo)):
             glBegin(GL_TRIANGLE_FAN)
-            glColor3f(0.0, 0.0, 0.0)
+            glColor3f(0.0, 0.1, 0.5)
             glVertex2f(50 + i * 10, 570)
             glVertex2f(50 + i * 10, 580)
             glVertex2f(60 + i * 10, 580)
@@ -101,9 +267,6 @@ class Game:
     def check_tank_collision(self):
         self.player_tank.front_breaking = False
         self.player_tank.back_breaking = False
-        dx, dy = self.player_tank.speed * \
-            cos(radians(self.player_tank.angle)), self.player_tank.speed * \
-            sin(radians(self.player_tank.angle))
 
         # Calculate prospective corner positions
         prospective_fl = self.player_tank.front_left()
@@ -111,25 +274,31 @@ class Game:
         prospective_bl = self.player_tank.back_left()
         prospective_br = self.player_tank.back_right()
 
-        if self.is_out_of_bounds(prospective_fl):
+        if self.is_colliding_with_wall(prospective_fl):
             self.player_tank.front_breaking = True
             self.player_tank.turning_left = False
-        elif self.is_out_of_bounds(prospective_fr):
+        elif self.is_colliding_with_wall(prospective_fr):
             self.player_tank.front_breaking = True
             self.player_tank.turning_right = False
-        elif self.is_out_of_bounds(prospective_bl):
+        elif self.is_colliding_with_wall(prospective_bl):
             self.player_tank.back_breaking = True
             self.player_tank.turning_right = False
-        elif self.is_out_of_bounds(prospective_br):
+        elif self.is_colliding_with_wall(prospective_br):
             self.player_tank.back_breaking = True
             self.player_tank.turning_left = False
         else:
             self.player_tank.back_breaking = False
             self.player_tank.front_breaking = False
 
-    def is_out_of_bounds(self, position):
+    def is_colliding_with_wall(self, position):
         x, y = position
-        return x < 11 or x > 789 or y < 11 or y > 589
+        for wall in self.perimeter_walls:  # Assuming you have a current_level object that has walls
+            if wall.check_collision(x, y):
+                return True
+        for gate in self.gates:
+            if gate.check_collision(x, y) and gate.is_open == False:
+                return True
+        return False
 
     def is_counter_clockwise(self, pointA, pointB, pointC):
         return (pointC[1] - pointA[1]) * (pointB[0] - pointA[0]) > (pointB[1] - pointA[1]) * (pointC[0] - pointA[0])
@@ -182,6 +351,7 @@ class Game:
                     self.do_lines_intersect(br, bl, zombie_point_a, zombie_point_b) or \
                     self.do_lines_intersect(bl, fl, zombie_point_a, zombie_point_b):
                 self.player_tank.health -= 1
+                self.zombie_kills += 1
                 self.zombies.remove(zombie)
                 return True
         return False
@@ -207,104 +377,12 @@ class Game:
                 return True
         return False
 
-    def check_boss_hit(self, projectile):
-        if self.boss_zombie:
-            # Define bounding box for projectile
-            projectile_box = [projectile.x - 2.5, projectile.y -
-                              2.5, projectile.x + 2.5, projectile.y + 2.5]
-
-            # Define bounding box for boss
-            boss_box = [self.boss_zombie.x - 50, self.boss_zombie.y -
-                        25, self.boss_zombie.x + 50, self.boss_zombie.y + 25]
-
-            # Check for bounding box overlap (Axis-Aligned Bounding Box, AABB)
-            if (projectile_box[0] < boss_box[2] and
-                projectile_box[2] > boss_box[0] and
-                projectile_box[1] < boss_box[3] and
-                    projectile_box[3] > boss_box[1]):
-
-                if self.boss_zombie.health == 1:
-                    self.boss_zombie = None
-                else:
-                    self.boss_zombie.health -= 1
-                return True
-        return False
-
     def init_game(self):
         pygame.display.init()
         pygame.display.set_mode(
             (self.screen_size["x"], self.screen_size["y"]), DOUBLEBUF | OPENGL)
         glClearColor(self.background_red, self.background_green,
                      self.background_blue, 0.5)
-
-    def game_loop(self):
-        if self.boss_zombie:
-            print(f"Boss health: {self.boss_zombie.health}")
-        self.render_text("Score: " + str(self.zombie_kills), (10, 10))
-        self.check_tank_collision()
-        if self.check_zombie_collision():
-            if self.player_tank.health <= 0:
-                self.game_over = True
-        current_time = time.time()
-        x_mouse, y_mouse = pygame.mouse.get_pos()
-        y_mouse = self.screen_size["y"] - y_mouse
-        self.player_tank.turret.update_angle(x_mouse, y_mouse)
-        self.player_tank.update_position()
-        new_ammo = [p for p in self.player_tank.ammo if 0 <=
-                    p.x <= 800 and 0 <= p.y <= 600]
-        self.player_tank.ammo = new_ammo
-        if current_time - self.last_health_time > self.health_box_interval:
-            self.spawn_health_box()
-            self.last_health_time = current_time
-        if current_time - self.last_ammo_time > self.ammo_box_interval:
-            self.spawn_ammo_box()
-            self.last_ammo_time = current_time
-        for supply in self.boxes:
-            self.check_supply_hit()
-        for projectile in self.player_tank.ammo:
-            if self.check_zombie_hit(projectile):
-                self.player_tank.ammo.remove(projectile)
-            if self.check_boss_hit(projectile):
-                self.player_tank.ammo.remove(projectile)
-        for zombie in self.zombies:
-            zombie.update_position(self.player_tank.x, self.player_tank.y)
-
-        if current_time - self.last_spawn_time > self.spawn_interval and len(self.zombies) < self.max_zombies:
-            if self.zombie_kills >= 5 and self.boss_zombie == None:
-                self.spawn_boss()
-                self.zombies = []
-            elif self.zombie_kills % 30 == 0 and self.zombie_kills != 0 and self.zombie_boss == None:
-                self.spawn_horde()
-            elif not self.boss_zombie:
-                self.spawn_zombie()
-                self.spawn_zombie()
-                self.spawn_zombie()
-
-            self.last_spawn_time = current_time
-        for projectile in self.player_tank.ammo:
-            projectile.update()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == K_ESCAPE):
-                pygame.quit()
-                quit()
-            elif event.type == pygame.KEYDOWN:
-                self.handle_key_down(event)
-            elif event.type == pygame.KEYUP:
-                self.handle_key_up(event)
-            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self.player_tank.fire()
-        if self.boss_zombie and self.boss_zombie.health > 0:
-            self.boss_zombie.update_position(
-                self.player_tank.x, self.player_tank.y)
-
-        self.display()
-
-    def draw_walls(self):
-        for _ in range(5):
-            x1, y1 = random.randint(0, 800), random.randint(0, 600)
-            x2, y2 = random.randint(0, 800), random.randint(0, 600)
-            wall = Wall(x1, y1, x2, y2)
-            self.walls.append(wall)
 
     def handle_key_down(self, event):
         if event.key == K_LEFT or event.key == K_a:
@@ -317,6 +395,8 @@ class Game:
             self.player_tank.going_down = True
         elif event.key == K_SPACE:
             self.player_tank.fire()
+        elif event.key == K_r and self.game_over or self.game_won:
+            self.reset_game()
 
     def handle_key_up(self, event):
         if event.key == K_LEFT or event.key == K_a:
@@ -337,62 +417,31 @@ class Game:
         glViewport(0, 0, 800, 600)
         gluOrtho2D(0, 800, 0, 600)
 
-        if self.player_tank.health <= 0:
-            self.reset_game()
-        # if self.is_boss_dead():
-        #     self.reset_game()
-
         self.player_tank.draw()
         for projectile in self.player_tank.ammo:
             projectile.draw()
-        for zombie in self.zombies:
-            zombie.draw()
-        for supply in self.boxes:
-            supply.draw()
-        self.draw_ammo_count()
-        self.draw_health_bar()
-        # for wall in self.walls:
-        #     wall.draw_random_lines()
-
-        for wall in self.perimeter_walls:
-            wall.draw()
-        if self.boss_zombie != None:
-            self.boss_zombie.draw()
-
-        self.render_text(
-            f"Kills until next round: {self.zombie_kills} / 60", (10, 10))
+        if not self.game_won and not self.game_over:
+            for zombie in self.zombies:
+                zombie.draw()
+            for supply in self.boxes:
+                supply.draw()
+            self.draw_ammo_count()
+            self.draw_health_bar()
+            for wall in self.perimeter_walls:
+                wall.draw()
+            for gate in self.gates:
+                gate.draw()
+        self.render_text(self.message, self.message_position)
         pygame.display.flip()
-
-    def spawn_boss(self):
-        edge = random.choice(["top", "bottom", "left", "right"])
-        if edge == "top":
-            x, y = 400, 600
-        elif edge == "bottom":
-            x, y = 400, 0
-        elif edge == "left":
-            x, y = 0, 300
-        elif edge == "right":
-            x, y = 800, 300
-
-        boss_zombie = BossZombie(x, y)
-        self.boss_zombie = boss_zombie
 
     def spawn_horde(self):
         for _ in range(15):
             self.spawn_zombie()
 
     def spawn_zombie(self):
-        edge = random.choice(["top", "bottom", "left", "right"])
-        if edge == "top":
-            x, y = 400, 600
-        elif edge == "bottom":
-            x, y = 400, 0
-        elif edge == "left":
-            x, y = 0, 300
-        elif edge == "right":
-            x, y = 800, 300
-
-        new_zombie = Zombie(x, y)
+        print("Spawning zombie")
+        x, y = random.choice(zombie_spawn_points)
+        new_zombie = Zombie(x, y, self.zombie_speed)
         self.zombies.append(new_zombie)
 
     def spawn_health_box(self):
@@ -404,17 +453,6 @@ class Game:
         x, y = random.randint(50, 750), random.randint(50, 550)
         new_box = SupplyBox(x, y, Box.AMMO)
         self.boxes.append(new_box)
-
-    def reset_game(self):
-        self.zombie_kills = 0
-        self.player_tank.health = 20
-        self.player_tank.max_ammo = 5
-        self.player_tank.ammo = []
-        self.zombies = []
-        self.boxes = []
-        self.game_over = False
-        self.player_tank.x = 400
-        self.player_tank.y = 300
 
     def render_text(self, text, position, color=(155, 213, 90, 255)):  # Include alpha
         text_surface = self.font.render(text, True, color)
