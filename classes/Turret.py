@@ -9,7 +9,7 @@ class Turret:
         self.angle = angle
 
     def draw(self):
-        glPushMatrix()  # Save the current transformation matrix
+        glPushMatrix()
         glRotatef(self.angle, 0, 0, 1)  # Rotate the turret
 
         glBegin(GL_TRIANGLE_FAN)
@@ -28,7 +28,7 @@ class Turret:
         glVertex2f(45, -barrel_width / 2)
         glEnd()
 
-        glPopMatrix()  # Restore the transformation matrix
+        glPopMatrix()
 
     def update_angle(self, x_mouse, y_mouse):
         dy = y_mouse - self.position.y
