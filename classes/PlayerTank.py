@@ -5,16 +5,17 @@ from math import radians, cos, sin
 
 from classes.Projectile import Projectile
 from classes.Turret import Turret
+from classes.Shared import Point, Vector
 
 
 class PlayerTank:
     def __init__(self, position, color, speed=5, angle=90):
-
-        self.x = position[0]
-        self.y = position[1]
+        self.position = position
         self.color = color
-        self.health = 15
-        self.speed = speed
+        self.health = 20
+        # Initialize as a Vector
+        self.speed = Vector(speed * cos(radians(angle)),
+                            speed * sin(radians(angle)))
         self.turning_left = False
         self.turning_right = False
         self.going_up = False
@@ -24,7 +25,7 @@ class PlayerTank:
         self.angle = angle
         self.max_ammo = 5
         self.ammo = []
-        self.turret = Turret(self.x, self.y, self.angle)
+        self.turret = Turret(self.position, self.angle)
         self.tracks = []
 
         self.clock = pygame.time.Clock()
@@ -33,7 +34,7 @@ class PlayerTank:
         angle_rad = radians(self.angle)
         new_x = x * cos(angle_rad) - y * sin(angle_rad)
         new_y = x * sin(angle_rad) + y * cos(angle_rad)
-        return [new_x + self.x, new_y + self.y]
+        return [new_x + self.position.x, new_y + self.position.y]
 
     def front_left(self):
         return self.rotate_and_translate(40, 25)
@@ -53,31 +54,37 @@ class PlayerTank:
         dy = barrel_length * sin(radians(self.turret.angle))
         if (len(self.ammo) < self.max_ammo):
             new_projectile = Projectile(
-                self.turret.x + dx, self.turret.y + dy, self.turret.angle)
+                self.position.x + dx, self.position.y + dy, self.turret.angle)
             self.ammo.append(new_projectile)
 
     def update_position(self):
         delta_time = self.clock.tick() / 1000
-        x_incr = self.speed * cos(radians(self.angle)) * delta_time
-        y_incr = self.speed * sin(radians(self.angle)) * delta_time
+        angular_speed = 100
+
+        speed_magnitude = 100
+        speed_x = speed_magnitude * cos(radians(self.angle))
+        speed_y = speed_magnitude * sin(radians(self.angle))
+
         if self.going_up and not self.front_breaking:
-            self.x += x_incr
-            self.y += y_incr
+            self.position.x += speed_x * delta_time
+            self.position.y += speed_y * delta_time
 
         if self.going_down and not self.back_breaking:
-            self.x -= x_incr
-            self.y -= y_incr
+            self.position.x -= speed_x * delta_time
+            self.position.y -= speed_y * delta_time
 
         if self.turning_left:
-            self.angle += self.speed * delta_time
+            self.angle += angular_speed * delta_time
+
         if self.turning_right:
-            self.angle -= self.speed * delta_time
-        self.turret.x = self.x
-        self.turret.y = self.y
+            self.angle -= angular_speed * delta_time
+
+        self.turret.position.x = self.position.x
+        self.turret.position.y = self.position.y
 
     def draw(self):
         glPushMatrix()  # Save the current transformation matrix
-        glTranslatef(self.x, self.y, 0)
+        glTranslatef(self.position.x, self.position.y, 0)
         glRotatef(self.angle, 0, 0, 1)
 
         glBegin(GL_TRIANGLE_FAN)
@@ -104,7 +111,7 @@ class PlayerTank:
         glPopMatrix()  # Restore the transformation matrix
 
         glPushMatrix()
-        glTranslatef(self.x, self.y, 0)
+        glTranslatef(self.position.x, self.position.y, 0)
         self.turret.draw()
         glPopMatrix()
 

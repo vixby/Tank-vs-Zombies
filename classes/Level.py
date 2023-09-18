@@ -10,7 +10,6 @@ class Level:
         self.clock = pygame.time.Clock()
         self.clock.tick()
         self.level = level
-        self.level_complete = False
         self.kill_requirement = kill_requirement
         self.spawn_rate = spawn_rate
         self.zombie_speed = zombie_speed

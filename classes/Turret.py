@@ -4,9 +4,8 @@ from math import degrees, atan2
 
 
 class Turret:
-    def __init__(self, x, y, angle):
-        self.x = x
-        self.y = y
+    def __init__(self, position, angle):
+        self.position = position
         self.angle = angle
 
     def draw(self):
@@ -32,6 +31,6 @@ class Turret:
         glPopMatrix()  # Restore the transformation matrix
 
     def update_angle(self, x_mouse, y_mouse):
-        dy = y_mouse - self.y
-        dx = x_mouse - self.x
+        dy = y_mouse - self.position.y
+        dx = x_mouse - self.position.x
         self.angle = degrees(atan2(dy, dx))

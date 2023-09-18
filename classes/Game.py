@@ -9,6 +9,7 @@ from classes.SupplyBox import SupplyBox, Box
 from classes.Wall import Wall
 from classes.Gate import Gate
 from classes.Level import Level
+from classes.Shared import Point, Vector
 import random
 import time
 
@@ -26,7 +27,7 @@ levels = [Level('main', [
     Gate((800, 250), (790, 250), (790, 350), (800, 350), (800, 250)),
     Gate((0, 250), (10, 250), (10, 350), (0, 350), (0, 250)),
     Gate((350, 0), (350, 10), (450, 10), (450, 0), (350, 0))],
-    15, 1, (400, 300), 90, 75),
+    100, 100, Point(400, 300), 90, 75),
     Level('level_one', [
         Wall((0, 0), (0, 10), (350, 10), (350, 0), (0, 0)),
         Wall((800, 0), (800, 10), (450, 10), (450, 0), (800, 0)),
@@ -34,7 +35,7 @@ levels = [Level('main', [
         Wall((0, 0), (10, 0), (10, 600), (0, 600), (0, 0)),
         Wall((800, 0), (790, 0), (790, 600), (800, 600), (800, 0)),
     ], [Gate((350, 0), (350, 10), (450, 10), (450, 0), (350, 0))],
-    30, 1, (400, 55), 90, 80),
+    1, 2, Point(400, 55), 90, 80),
     Level('level_two', [
         Wall((0, 0), (0, 10), (800, 10), (800, 0), (0, 0)),
         Wall((0, 600), (0, 590), (800, 590), (800, 600), (0, 600)),
@@ -42,7 +43,7 @@ levels = [Level('main', [
         Wall((0, 600), (10, 600), (10, 350), (0, 350), (0, 600)),
         Wall((800, 0), (790, 0), (790, 590), (800, 590), (800, 0)),
     ], [Gate((0, 250), (10, 250), (10, 350), (0, 350), (0, 250))],
-    45, 1, (55, 300), 0, 85),
+    1, 2, Point(55, 300), 0, 85),
     Level('level_three', [
         Wall((0, 0), (0, 10), (800, 10), (800, 0), (0, 0)),
         Wall((0, 600), (0, 590), (800, 590), (800, 600), (0, 600)),
@@ -50,7 +51,7 @@ levels = [Level('main', [
         Wall((800, 0), (790, 0), (790, 250), (800, 250), (800, 0)),
         Wall((800, 600), (790, 600), (790, 350), (800, 350), (800, 600)),
     ], [Gate((800, 250), (790, 250), (790, 350), (800, 350), (800, 250))],
-    60, 1, (745, 300), 180, 95),
+    1, 2, Point(745, 300), 180, 95),
     Level('level_four', [
         Wall((0, 0), (0, 10), (800, 10), (800, 0), (0, 0)),
         Wall((0, 600), (0, 590), (350, 590), (350, 600), (0, 600)),
@@ -58,14 +59,7 @@ levels = [Level('main', [
         Wall((0, 0), (10, 0), (10, 600), (0, 600), (0, 0)),
         Wall((800, 0), (790, 0), (790, 600), (800, 600), (800, 0)),
     ], [Gate((350, 600), (350, 590), (450, 590), (450, 600), (350, 600))],
-    75, 0.5, (400, 550), 270, 105)
-]
-
-zombie_spawn_points = [
-    (random.randint(50, 750), 550),
-    (random.randint(50, 750), 50),
-    (50, random.randint(50, 550)),
-    (750, random.randint(50, 550))
+    1, 1, Point(400, 550), 270, 105)
 ]
 
 
@@ -108,10 +102,10 @@ class Game:
 
         # tank settings
         self.player_tank = PlayerTank(
-            (self.level.tank_position[0], self.level.tank_position[1]), (0.4, 0.3, 0.2), self.level.angle)
+            self.level.tank_position, (0.4, 0.3, 0.2), self.level.angle)
 
         # zombie settings
-        self.spawn_interval = 3
+        self.spawn_interval = self.level.spawn_rate
         self.last_spawn_time = 0
         self.max_zombies = 25
         self.zombies = []
@@ -139,12 +133,11 @@ class Game:
         self.gates = self.level.gates
         self.kill_requirements = self.level.kill_requirement
         self.spawn_interval = self.level.spawn_rate
-        self.player_tank.x = self.level.tank_position[0]
-        self.player_tank.y = self.level.tank_position[1]
+        self.player_tank.position = self.level.tank_position
         self.player_tank.angle = self.level.angle
 
     def reset_game(self):
-        self.player_tank.health = 15
+        self.player_tank.health = 20
         self.player_tank.max_ammo = 5
         self.highest_level_completed = 0
         self.current_level_index = 0
@@ -157,8 +150,7 @@ class Game:
         self.zombie_kills = 0
         self.game_over = False
         self.game_won = False
-        self.player_tank.x = self.level.tank_position[0]
-        self.player_tank.y = self.level.tank_position[1]
+        self.player_tank.position = self.level.tank_position
         self.player_tank.angle = self.level.angle
 
     def set_game_over(self):
@@ -204,13 +196,13 @@ class Game:
         new_ammo = [p for p in self.player_tank.ammo if 0 <=
                     p.x <= 800 and 0 <= p.y <= 600]
         self.player_tank.ammo = new_ammo
-        for supply in self.boxes:
+        for _ in self.boxes:
             self.check_supply_hit()
         for projectile in self.player_tank.ammo:
             if self.check_zombie_hit(projectile):
                 self.player_tank.ammo.remove(projectile)
         for zombie in self.zombies:
-            zombie.update_position(self.player_tank.x, self.player_tank.y)
+            zombie.update_position(self.player_tank.position)
         if not self.game_won and not self.game_over:
             self.check_spawning(current_time)
         for projectile in self.player_tank.ammo:
@@ -233,7 +225,6 @@ class Game:
 
     def check_spawning(self, current_time):
         if current_time - self.last_spawn_time > self.spawn_interval and len(self.zombies) < self.max_zombies:
-            print(".....")
             for _ in range(random.randint(1, 6)):
                 self.spawn_zombie()
             self.last_spawn_time = current_time
@@ -395,7 +386,7 @@ class Game:
             self.player_tank.going_down = True
         elif event.key == K_SPACE:
             self.player_tank.fire()
-        elif event.key == K_r and self.game_over or self.game_won:
+        elif event.key == K_r and (self.game_over or self.game_won):
             self.reset_game()
 
     def handle_key_up(self, event):
@@ -434,14 +425,19 @@ class Game:
         self.render_text(self.message, self.message_position)
         pygame.display.flip()
 
-    def spawn_horde(self):
-        for _ in range(15):
-            self.spawn_zombie()
+    def get_random_position(self):
+        zombie_spawn_points = [
+            (random.randint(50, 750), 550),
+            (random.randint(50, 750), 50),
+            (50, random.randint(50, 550)),
+            (750, random.randint(50, 550)),
+        ]
+
+        return zombie_spawn_points[random.randint(0, 3)]
 
     def spawn_zombie(self):
-        print("Spawning zombie")
-        x, y = random.choice(zombie_spawn_points)
-        new_zombie = Zombie(x, y, self.zombie_speed)
+        spawn = self.get_random_position()
+        new_zombie = Zombie(spawn[0], spawn[1], self.zombie_speed)
         self.zombies.append(new_zombie)
 
     def spawn_health_box(self):

@@ -30,9 +30,10 @@ class Zombie:
 
         glEnd()
 
-    def update_position(self, target_x, target_y):
+    def update_position(self, tank_position):
         delta_time = self.clock.tick() / 1000
-        angle_to_target = atan2(target_y - self.y, target_x - self.x)
+        angle_to_target = atan2(tank_position.y - self.y,
+                                tank_position.x - self.x)
         dx = self.speed * cos(angle_to_target) * delta_time
         dy = self.speed * sin(angle_to_target) * delta_time
         self.x += dx
